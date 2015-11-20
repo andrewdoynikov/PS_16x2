@@ -50,6 +50,34 @@ void rda5807SetFreq(uint16_t freq, uint8_t mono)
 	return;
 }
 
+uint8_t rda5807GetChan(void)
+{
+  uint8_t hi, lo;
+  I2CswStart(RDA5807M_I2C_ADDR | I2C_READ);
+  hi = I2CswReadByte(I2C_ACK);
+  lo = I2CswReadByte(I2C_NOACK) ;
+  I2CswStop();
+  uint16_t c = ((256 * hi) + lo);
+  return (c & 0x3FF);
+}
+
+void rda5807SetChan(uint8_t chan, uint8_t mono)
+{
+	if (mono)
+		wrBuf[0] |= RDA5807_MONO;
+	else
+		wrBuf[0] &= ~RDA5807_MONO;
+
+	wrBuf[2] = chan >> 2;								/* 8 MSB */
+
+	wrBuf[3] &= 0x3F;
+	wrBuf[3] |= RDA5807_TUNE | ((chan & 0x03) << 6);	/* 2 LSB */
+
+	rda5807WriteI2C();
+
+	return;
+}
+
 uint8_t *rda5807ReadStatus(void)
 {
 	uint8_t i;

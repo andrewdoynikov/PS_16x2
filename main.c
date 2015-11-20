@@ -41,7 +41,7 @@ int main(void)
   rda5807Init();
   rda5807PowerOn();
   rda5807SetVolume(10);
-  set_freq(9640);
+  set_freq(10120);
   rda5807SetFreq(get_freq(),0);
   //RTC_set_time(13,41, 0);
   LCD_clear();
@@ -55,7 +55,15 @@ int main(void)
   ds18x20Process();
   if (bmp180HaveSensor()) bmp180Convert();
   dht22Read();
-  BEEP_beep();
+  if ((BUT_1_PINX & (1<<(BUT_1_PIN))) == 0) {
+    _delay_ms(100);
+    if ((BUT_1_PINX & (1<<(BUT_1_PIN))) == 0) {
+      RTOS_setTask(EVENT_SET_STATE_OPTION, 0, 0);
+      BEEP_beep();
+	  while (((BUT_1_PINX & (1<<(BUT_1_PIN))) == 0)) { }
+      BEEP_beep();
+    }
+  }
   RTOS_setTaskFunc(set_blink, 0, 1000);      // моргание
   RTOS_setTaskFunc(KBD_scan, 0, 5);          // запускаем опрос кнопок
   RTOS_setTaskFunc(ENC_poll, 0, 1);          // запускаем опрос енкодера

@@ -120,7 +120,7 @@
  * or 4-11 => E when ABCD_E = 1
  */
 
-#define RDA5807_SPACE				RDA5807_SPACE_50
+#define RDA5807_SPACE				RDA5807_SPACE_100
 #define RDA5807_BAND				RDA5807_BAND_US_EUROPE
 
 #if RDA5807_SPACE == RDA5807_SPACE_50
@@ -148,6 +148,8 @@
 void rda5807Init(void);
 
 void rda5807SetFreq(uint16_t freq, uint8_t mono);
+void rda5807SetChan(uint8_t chan, uint8_t mono);
+uint8_t rda5807GetChan(void);
 
 uint8_t *rda5807ReadStatus(void);
 

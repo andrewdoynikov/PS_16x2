@@ -17,15 +17,28 @@
 #include "eeproms.h"
 #include "utils.h"
 //=============================================================================
+#define OMENU_MAX 2
+char *optionmenu[] = {
+"Set TIME  ", 
+"Set DATE  ", 
+"Set ALARM " 
+};
+#define OM_SETTIME     	0
+#define OM_SETDATE     	1
+#define OM_SETALARM    	2
+uint8_t o_menu = OM_SETTIME;
+//=============================================================================
 #define DEBUGER		0
-//=============================================================================
-#define BEEP()		PORT(BEEPER) &= ~BEEPER_LINE; _delay_ms(40); PORT(BEEPER) |= BEEPER_LINE;
-#define BEEP_2()	PORT(BEEPER) &= ~BEEPER_LINE; _delay_ms(40); PORT(BEEPER) |= BEEPER_LINE;
-//=============================================================================
 #define SHOW_TIME_SENSOR_NUM	1000
 #define SHOW_TIME_SENSOR_TEMP	5000
 //=============================================================================
+unsigned char a_onoff, a_hour, a_min, a_sec;
+unsigned char n_edit_time = 0, n_edit_date = 0, n_edit_alarm = 0;
+unsigned char hour, min, sec;
+unsigned char wday, day, mes, year;
+//=============================================================================
 extern void (*pState)(unsigned char event);
+//=============================================================================
 uint16_t freqs = 10000;
 #define SET_STATE(a) pState = a  // макрос для смены состояния
 unsigned char blinks = 0;
@@ -134,6 +147,9 @@ void show_bigfreq(void)
   lcd_bigchar(8, display[2]);
   LCD_dat(4);
   lcd_bigchar(13, display[3]);
+  _delay_ms(1000);
+  LCD_goto(0, 0); print_dec(rda5807GetChan(), 3, ' ');
+  _delay_ms(1000);
 }
 //=============================================================================
 void show_bigtemp(void)
@@ -238,8 +254,63 @@ void run_main(unsigned char event)
 	  LCD_clear();
       show_himedity(); 
     break;
+    case EVENT_SET_STATE_OPTION:
+	  LCD_clear();
+	  SET_STATE(run_option);
+  	  lcd_option();
+    break;
 	default:
     break;
   }
+}
+//=============================================================================
+void run_option(unsigned char event)
+{
+  switch(event) {
+    case EVENT_TIMER_SECOND:
+	  lcd_option();
+    break;
+    case EVENT_KEY_LEFT:
+      BEEP_beep();
+      if (o_menu > 0) { o_menu--; } else { o_menu = OMENU_MAX; }
+	  lcd_option();
+    break;
+    case EVENT_KEY_RIGHT:
+      BEEP_beep();
+      if (o_menu < OMENU_MAX) { o_menu++; } else { o_menu = 0; }
+	  lcd_option();
+    break;
+    case EVENT_KEY_SET_LONG:
+	  LCD_clear();
+	  SET_STATE(run_main);
+      RTOS_setTask(EVENT_TIMER_SECOND, 0, 0);
+    break;
+  }
+}
+//=============================================================================
+void lcd_option(void)
+{
+  unsigned char h, m, s;
+  unsigned char d, ms, y, dw;
+  LCD_goto(0, 0);
+  LCD_puts(optionmenu[o_menu]);
+  if (o_menu == OM_SETTIME) {
+    RTC_get_time(&h, &m, &s);
+    LCD_goto(0, 1);
+    print_dec(h,2,'0'); LCD_dat(':'); print_dec(m,2,'0'); LCD_dat(':'); print_dec(s,2,'0'); 
+    LCD_puts("          ");
+  } else if (o_menu == OM_SETDATE) {
+    RTC_get_date(&dw, &d, &ms, &y);
+    dw = RTC_day_of_week(d, ms, y);
+    LCD_goto(0, 1);
+    print_dec(d,2,'0'); LCD_dat('-'); print_dec(ms,2,'0'); LCD_dat('-'); print_dec(2000 + y,4,'0'); 
+    LCD_dat(' '); LCD_dat('['); LCD_puts(den_dw[dw]); LCD_dat(']'); LCD_dat(' ');
+  } else if (o_menu == OM_SETALARM) {
+    LCD_goto(0, 1);
+    print_dec(a_hour,2,'0'); LCD_dat(':'); print_dec(a_min,2,'0'); LCD_dat(':'); print_dec(a_sec,2,'0');
+    LCD_dat(' '); LCD_dat('-'); LCD_dat(' '); LCD_dat('[');
+    if (a_onoff == 1) LCD_puts(" ON"); else LCD_puts("OFF");
+	LCD_dat(']');
+  }                                                            
 }
 //=============================================================================

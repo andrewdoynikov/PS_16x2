@@ -5,6 +5,8 @@
 #define SENSOR_POLL_INTERVAL	5000
 //=============================================================================
 void run_main(unsigned char event);
+void run_option(unsigned char event);
+void lcd_option(void);
 void set_blink(void);
 void DS18x20_scan(void);
 void RC5_scan(void);
