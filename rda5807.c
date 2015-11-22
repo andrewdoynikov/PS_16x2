@@ -71,6 +71,7 @@ void rda5807SetChan(uint8_t chan, uint8_t mono)
 	wrBuf[3] |= RDA5807_TUNE | ((chan & 0x03) << 6);	/* 2 LSB */
 
 	rda5807WriteI2C();
+    freqs = RDA5807_FREQ_MIN + chan * 10;
 
 	return;
 }

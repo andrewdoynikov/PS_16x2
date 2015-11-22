@@ -39,18 +39,27 @@ uint8_t o_menu = OM_SETTIME;
 #define SHOW_TEMP					5
 #define SHOW_PRESURE				5
 #define SHOW_HIMEDITY				5
+
+#define MODE_FREQ					0
+#define MODE_TIME					1
+#define MODE_TEMP					2
+#define MODE_PRESURE				3
+#define MODE_HIMEDITY				4
+#define MODE_VOLUME					5
 //=============================================================================
 unsigned char a_onoff, a_hour, a_min, a_sec;
 unsigned char n_edit_time = 0, n_edit_date = 0, n_edit_alarm = 0;
 unsigned char hour, min, sec;
 unsigned char wday, day, mes, year;
 //=============================================================================
+uint8_t stations[] = {70,83,90,94,98,117,121,125,130,134,138,142,146,150,154,159,165,171,175,179,184,189,193,198,203,208};
+//=============================================================================
 extern void (*pState)(unsigned char event);
 //=============================================================================
 #define SET_STATE(a) pState = a  // макрос для смены состояния
 unsigned char blinks = 0;
 unsigned char sensor_num = 0;
-unsigned char mute = 1;
+unsigned char mute = 1, mode = 0, fm_mode = 0, chanel = 0;
 unsigned char regim = 0;
 static unsigned char cnt_sensor = 0, cnt_freq = 0;
 char *den_dw[] = {"MO","TU","WE","TH","FR","SA","SU"};
@@ -130,6 +139,17 @@ void show_himedity(void)
   }
 }
 //=============================================================================
+void show_bigvolume(void)
+{
+  uint8_t display[2];
+  uint8_t v = rda5807GetVolume();
+  display[0] = (v / 10) % 10;
+  display[1] = (v / 1) % 10;
+  LCD_goto(0, 0); LCD_puts("VOLUME:");
+  lcd_bigchar(8, display[0]);
+  lcd_bigchar(12, display[1]);
+}
+
 void show_bigfreq(void)
 {
   uint8_t display[4];
@@ -189,24 +209,31 @@ void set_blink(void)
   if (cnt_freq > 0) {
     if (cnt_freq == SHOW_FREQ) {
       RTOS_setTask(EVENT_SHOW_FREQ, 0, 0);
+	  mode = MODE_FREQ;
 	}
     cnt_sensor = 0;
     cnt_freq--;
   } else if (cnt_sensor < SHOW_TIME) {
     RTOS_setTask(EVENT_TIMER_SECOND, 0, 0);
+    mode = MODE_TIME;
   } else if (cnt_sensor == SHOW_TIME) {
     RTOS_setTask(EVENT_SENSOR_TEMP, 0, 0);
+    mode = MODE_TEMP;
   } else if (cnt_sensor == SHOW_TIME + SHOW_TEMP) {
     RTOS_setTask(EVENT_SENSOR_PRESSURE, 0, 0);
+    mode = MODE_PRESURE;
   } else if (cnt_sensor == SHOW_TIME + SHOW_TEMP + SHOW_PRESURE) {
     RTOS_setTask(EVENT_SENSOR_HIMUDATE, 0, 0);
+    mode = MODE_HIMEDITY;
   } else if (cnt_sensor == SHOW_TIME + SHOW_TEMP + SHOW_PRESURE + SHOW_HIMEDITY) {
     cnt_sensor = 0;
 	if (mute == 0) {
       cnt_freq = SHOW_FREQ;
+	  mode = MODE_FREQ;
 	} else { 
 	  cnt_freq = 0;
       RTOS_setTask(EVENT_TIMER_SECOND, 0, 0);
+      mode = MODE_TIME;
     }
   }
 }
@@ -218,16 +245,46 @@ void run_main(unsigned char event)
 	  show_bigtime();
     break;
     case EVENT_KEY_LEFT:
-      rda5807SetVolume(rda5807GetVolume() - 1);
-      LCD_goto(1, 1); LCD_puts("VOL:");
-      LCD_progress_bar(rda5807GetVolume(), 15, 11); 
+	  if (fm_mode == 0) {
+	    if (mute == 0) {
+          rda5807SetVolume(rda5807GetVolume() - 1);
+          RTOS_setTask(EVENT_SHOW_VOLUME, 0, 0);
+	    }
+	  } else {
+	    if (chanel > 0) chanel--;
+        rda5807SetChan(stations[chanel], 0);
+        cnt_sensor = 0;
+        cnt_freq = SHOW_FREQ;
+	    mode = MODE_FREQ;
+	  }
     break;
     case EVENT_KEY_RIGHT:
-      rda5807SetVolume(rda5807GetVolume() + 1);
-      LCD_goto(1, 1); LCD_puts("VOL:");
-      LCD_progress_bar(rda5807GetVolume(), 15, 11); 
+	  if (fm_mode == 0) {
+	    if (mute == 0) {
+          rda5807SetVolume(rda5807GetVolume() + 1);
+          RTOS_setTask(EVENT_SHOW_VOLUME, 0, 0);
+	    }
+	  } else {
+	    if (chanel < 25) chanel++;
+        rda5807SetChan(stations[chanel], 0);
+        cnt_sensor = 0;
+        cnt_freq = SHOW_FREQ;
+	    mode = MODE_FREQ;
+	  }
+    break;
+    case EVENT_SHOW_VOLUME:
+	  if (mode != MODE_VOLUME) LCD_clear();
+      mode = MODE_VOLUME;
+      show_bigvolume();
+      RTOS_setTask(EVENT_STOP_SHOW_VOLUME, 2000, 0);
+    break;
+    case EVENT_STOP_SHOW_VOLUME:
+      cnt_freq = SHOW_FREQ;
+      cnt_sensor = 0;
+      mode = MODE_FREQ;
     break;
     case EVENT_KEY_SET_LONG:
+      fm_mode = !fm_mode;
     break;
     case EVENT_KEY_SET:
     break;
@@ -237,10 +294,11 @@ void run_main(unsigned char event)
 	    cnt_freq = 0;
 	    rda5807SetMute(1);
 	  } else {
-        rda5807SetFreq(10120, 0);
+        rda5807SetChan(stations[chanel], 0);
 	    rda5807SetMute(0);
         rda5807SetVolume(10);
         cnt_freq = SHOW_FREQ;
+	    mode = MODE_FREQ;
 	  }
     break;
     case EVENT_SHOW_FREQ:

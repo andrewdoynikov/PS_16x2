@@ -10,6 +10,7 @@ void run_option(unsigned char event);
 void lcd_option(void);
 void set_blink(void);
 void RC5_scan(void);
+void show_bigvolume(void);
 void show_bigtime(void);
 void show_bigfreq(void);
 void show_bigtemp(void);
