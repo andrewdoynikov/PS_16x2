@@ -148,6 +148,7 @@
 void rda5807Init(void);
 
 void rda5807SetFreq(uint16_t freq, uint8_t mono);
+uint16_t rda5807GetFreq(void);
 void rda5807SetChan(uint8_t chan, uint8_t mono);
 uint8_t rda5807GetChan(void);
 

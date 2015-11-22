@@ -40,9 +40,7 @@ int main(void)
   dht22Init();
   rda5807Init();
   rda5807PowerOn();
-  rda5807SetVolume(10);
-  set_freq(10120);
-  rda5807SetFreq(get_freq(),0);
+  rda5807SetMute(1);
   //RTC_set_time(13,41, 0);
   LCD_clear();
   LCD_goto(0, 0);
@@ -68,7 +66,6 @@ int main(void)
   RTOS_setTaskFunc(KBD_scan, 0, 5);          // запускаем опрос кнопок
   RTOS_setTaskFunc(ENC_poll, 0, 1);          // запускаем опрос енкодера
   RTOS_setTaskFunc(RC5_scan, 0, 5);          // запускаем опрос RC5
-  RTOS_setTaskFunc(DS18x20_scan, 0, 5000);   // запускаем измерение температуры 
   sei(); 				        			 // Разрешили прерывания
   while(1) {
     RTOS_dispatchTask();    			     // Вызываем диспетчер в цикле.    

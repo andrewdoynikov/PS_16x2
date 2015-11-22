@@ -57,6 +57,7 @@
 // Секундный таймер
 #define EVENT_TIMER_SECOND		253
 // Прочие события
+#define EVENT_SHOW_FREQ			150
 #define EVENT_SET_STATE_OPTION	200
 //=============================================================================
 #endif // EVENT_LIST_H

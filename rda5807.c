@@ -1,3 +1,4 @@
+#include <util/delay.h>
 #include "rda5807.h"
 
 #include "i2csw.h"
@@ -5,6 +6,7 @@
 static uint8_t wrBuf[8];
 static uint8_t rdBuf[12];
 static uint8_t _volume = RDA5807_VOL_MAX;
+static uint16_t freqs = 10000;
 
 static void rda5807WriteI2C(void)
 {
@@ -34,20 +36,15 @@ void rda5807Init(void)
 void rda5807SetFreq(uint16_t freq, uint8_t mono)
 {
 	uint16_t chan = (freq - RDA5807_FREQ_MIN) / RDA5807_CHAN_SPACING;
-
-	if (mono)
-		wrBuf[0] |= RDA5807_MONO;
-	else
-		wrBuf[0] &= ~RDA5807_MONO;
-
-	wrBuf[2] = chan >> 2;								/* 8 MSB */
-
-	wrBuf[3] &= 0x3F;
-	wrBuf[3] |= RDA5807_TUNE | ((chan & 0x03) << 6);	/* 2 LSB */
-
-	rda5807WriteI2C();
+    freqs = freq;
+	rda5807SetChan(chan, mono);
 
 	return;
+}
+
+uint16_t rda5807GetFreq(void)
+{
+  return freqs;
 }
 
 uint8_t rda5807GetChan(void)
@@ -101,7 +98,7 @@ void rda5807SetMute(uint8_t mute)
 		wrBuf[0] &= ~RDA5807_DMUTE;
 	else
 		wrBuf[0] |= RDA5807_DMUTE;
-	wrBuf[3] &= ~RDA5807_TUNE;
+	//wrBuf[3] &= ~RDA5807_TUNE;
 
 	rda5807WriteI2C();
 
@@ -115,32 +112,27 @@ uint8_t rda5807GetVolume(void)
 
 void rda5807SetVolume(int8_t value)
 {
-    if ((value < RDA5807_VOL_MAX) && (value >= RDA5807_VOL_MIN)) {
-	 
-	  _volume = value;
-
-	  wrBuf[7] &= ~RDA5807_VOLUME;
-	  if (_volume)
-		wrBuf[7] |= (_volume - 1);
-
-	  rda5807SetMute(!_volume);
-    }
-	return;
+  uint8_t v;
+  v = wrBuf[7] & 0xF0;
+  if (value <= 15) {
+    wrBuf[7] = v + value;
+    rda5807WriteI2C();
+	_volume = value;
+  }
+  _delay_ms(50);
+  return;
 }
 
 void rda5807PowerOn(void)
 {
-	wrBuf[0] |= RDA5807_DMUTE;
 	wrBuf[1] |= RDA5807_ENABLE;
-    rda5807WriteI2C();
+	rda5807WriteI2C();
 	return;
 }
 
 void rda5807PowerOff(void)
 {
 	wrBuf[1] &= ~RDA5807_ENABLE;
-
-	rda5807SetMute(1);
-
+	rda5807WriteI2C();
 	return;
 }

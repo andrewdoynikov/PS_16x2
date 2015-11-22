@@ -135,7 +135,7 @@ for(i=0; i<length; i++)
   {
     if( ((i*(uint16_t)PROGRESSPIXELS_PER_CHAR)) > pixelprogress )
     {
-      c = 0;
+      c = 0x20;
     } else {
       c = pixelprogress % PROGRESSPIXELS_PER_CHAR;
     }

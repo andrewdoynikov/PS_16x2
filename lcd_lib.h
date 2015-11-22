@@ -35,7 +35,7 @@
 #define LCD_DDRAM               7	// set DD RAM address
 #define LCD_LINES			    2	// visible lines
 #define LCD_LINE_LENGTH		    16	// line length (in characters)
-#define PROGRESSPIXELS_PER_CHAR	6
+#define PROGRESSPIXELS_PER_CHAR	0xFF
 //=============================================================================
 #define LIGHT_init()			LCD_DDR_LIGHT |= (1 << LCD_LIGHT)
 #define LIGHT_on()				LCD_PORT_LIGHT |= (1 << LCD_LIGHT)

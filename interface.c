@@ -29,8 +29,16 @@ char *optionmenu[] = {
 uint8_t o_menu = OM_SETTIME;
 //=============================================================================
 #define DEBUGER		0
-#define SHOW_TIME_SENSOR_NUM	1000
-#define SHOW_TIME_SENSOR_TEMP	5000
+#define SHOW_TIME_SENSOR_NUM		1
+#define SHOW_TIME_SENSOR_TEMP		5
+#define SHOW_TIME_SENSOR_PRESURE	50
+#define SHOW_TIME_SENSOR_HIMEDITY	100
+
+#define SHOW_FREQ					30
+#define SHOW_TIME					60
+#define SHOW_TEMP					5
+#define SHOW_PRESURE				5
+#define SHOW_HIMEDITY				5
 //=============================================================================
 unsigned char a_onoff, a_hour, a_min, a_sec;
 unsigned char n_edit_time = 0, n_edit_date = 0, n_edit_alarm = 0;
@@ -39,12 +47,12 @@ unsigned char wday, day, mes, year;
 //=============================================================================
 extern void (*pState)(unsigned char event);
 //=============================================================================
-uint16_t freqs = 10000;
 #define SET_STATE(a) pState = a  // макрос для смены состояния
 unsigned char blinks = 0;
 unsigned char sensor_num = 0;
-unsigned char mute = 0;
+unsigned char mute = 1;
 unsigned char regim = 0;
+static unsigned char cnt_sensor = 0, cnt_freq = 0;
 char *den_dw[] = {"MO","TU","WE","TH","FR","SA","SU"};
 char *den_dw_full[] = {"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday", "Sunday"};
 char *mes_full[] = {"January","February","March","April","May","June","July","August","September","October","November","December"};
@@ -83,16 +91,6 @@ void show_bigtime(void)
   lcd_bigchar(0, h / 10); lcd_bigchar(4, h % 10); lcd_bigchar(9, m / 10); lcd_bigchar(13, m % 10);
 }
 //=============================================================================
-void set_freq(uint16_t freq)
-{
-  freqs = freq;
-}
-//=============================================================================
-uint16_t get_freq(void)
-{
-  return freqs;
-}
-//=============================================================================
 void show_bigpressure(void)
 {
   uint8_t display[4];
@@ -109,7 +107,6 @@ void show_bigpressure(void)
     lcd_bigchar(8, display[2]);
     LCD_goto(13, 0); LCD_puts("MM");
     LCD_goto(13, 1); LCD_puts("RS");
-    _delay_ms(2000);
   }
 }
 //=============================================================================
@@ -117,6 +114,7 @@ void show_himedity(void)
 {
   uint8_t display[4];
   int16_t p;
+  dht22Read();
   if (dht22HaveSensor()) {
   	p = dht22GetHumidity();
     display[0] = (p / 1000) % 10;
@@ -129,13 +127,13 @@ void show_himedity(void)
     lcd_bigchar(9, display[3]);
     LCD_goto(14, 0); LCD_puts("HM");
     LCD_goto(14, 1); LCD_puts("%%");
-    _delay_ms(2000);
   }
 }
 //=============================================================================
 void show_bigfreq(void)
 {
   uint8_t display[4];
+  uint16_t freqs = rda5807GetFreq();
   display[0] = (freqs / 10000) % 10;
   display[1] = (freqs / 1000) % 10;
   display[2] = (freqs / 100) % 10;
@@ -147,14 +145,10 @@ void show_bigfreq(void)
   lcd_bigchar(8, display[2]);
   LCD_dat(4);
   lcd_bigchar(13, display[3]);
-  _delay_ms(1000);
-  LCD_goto(0, 0); print_dec(rda5807GetChan(), 3, ' ');
-  _delay_ms(1000);
 }
 //=============================================================================
 void show_bigtemp(void)
 {
-  static uint8_t cnt_bmp180 = 0;
   uint8_t display[3];
   int16_t t = ds18x20GetTemp(0);
   if (t < 0) {
@@ -167,17 +161,7 @@ void show_bigtemp(void)
   lcd_bigchar(8, display[1]);
   LCD_dat(4);
   lcd_bigchar(13, display[2]);
-  _delay_ms(1000);
   ds18x20Process();
-  cnt_bmp180++;
-  if (cnt_bmp180 == 5) {
-    cnt_bmp180 = 0;
-    if (bmp180HaveSensor()) {
-	  bmp180Convert();
-      dht22Read();
-      RTOS_setTask(EVENT_SENSOR_PRESSURE, 0, 0);
-    }
-  }
 }
 //=============================================================================
 void RC5_scan(void)
@@ -201,58 +185,79 @@ void save_eeprom(void)
 void set_blink(void)
 {
   blinks = !blinks;
-  RTOS_setTask(EVENT_TIMER_SECOND, 0, 0);
-}
-//=============================================================================
-void DS18x20_scan(void)
-{
-  RTOS_setTask(EVENT_SENSOR_TEMP, 0, 0);
+  cnt_sensor++;
+  if (cnt_freq > 0) {
+    if (cnt_freq == SHOW_FREQ) {
+      RTOS_setTask(EVENT_SHOW_FREQ, 0, 0);
+	}
+    cnt_sensor = 0;
+    cnt_freq--;
+  } else if (cnt_sensor < SHOW_TIME) {
+    RTOS_setTask(EVENT_TIMER_SECOND, 0, 0);
+  } else if (cnt_sensor == SHOW_TIME) {
+    RTOS_setTask(EVENT_SENSOR_TEMP, 0, 0);
+  } else if (cnt_sensor == SHOW_TIME + SHOW_TEMP) {
+    RTOS_setTask(EVENT_SENSOR_PRESSURE, 0, 0);
+  } else if (cnt_sensor == SHOW_TIME + SHOW_TEMP + SHOW_PRESURE) {
+    RTOS_setTask(EVENT_SENSOR_HIMUDATE, 0, 0);
+  } else if (cnt_sensor == SHOW_TIME + SHOW_TEMP + SHOW_PRESURE + SHOW_HIMEDITY) {
+    cnt_sensor = 0;
+	if (mute == 0) {
+      cnt_freq = SHOW_FREQ;
+	} else { 
+	  cnt_freq = 0;
+      RTOS_setTask(EVENT_TIMER_SECOND, 0, 0);
+    }
+  }
 }
 //=============================================================================
 void run_main(unsigned char event)
 {
-  uint8_t vol;
   switch(event) {
     case EVENT_TIMER_SECOND:
-      show_bigfreq();
-//	  show_bigtime();
+	  show_bigtime();
     break;
     case EVENT_KEY_LEFT:
-	  if (regim == 0) {
-	    vol = rda5807GetVolume();
-	    rda5807SetVolume(vol - 1);
-	  } else {
-	    rda5807SetFreq(10120,0);
-		set_freq(10120);
-	  }
+      rda5807SetVolume(rda5807GetVolume() - 1);
+      LCD_goto(1, 1); LCD_puts("VOL:");
+      LCD_progress_bar(rda5807GetVolume(), 15, 11); 
     break;
     case EVENT_KEY_RIGHT:
-	  if (regim == 0) {
-	    vol = rda5807GetVolume();
-	    rda5807SetVolume(vol + 1);
-	  } else {
-	    rda5807SetFreq(10000,0);
-		set_freq(10000);
-	  }
+      rda5807SetVolume(rda5807GetVolume() + 1);
+      LCD_goto(1, 1); LCD_puts("VOL:");
+      LCD_progress_bar(rda5807GetVolume(), 15, 11); 
     break;
     case EVENT_KEY_SET_LONG:
-	  mute = !mute;
-      rda5807SetMute(mute);
     break;
     case EVENT_KEY_SET:
-	  regim = !regim;
+    break;
+    case EVENT_KEY_SET_DOUBLE:
+	  mute = !mute;
+	  if (mute == 1) {
+	    cnt_freq = 0;
+	    rda5807SetMute(1);
+	  } else {
+        rda5807SetFreq(10120, 0);
+	    rda5807SetMute(0);
+        rda5807SetVolume(10);
+        cnt_freq = SHOW_FREQ;
+	  }
+    break;
+    case EVENT_SHOW_FREQ:
+	  LCD_clear();
+      show_bigfreq();
     break;
     case EVENT_SENSOR_TEMP:
 	  LCD_clear();
       show_bigtemp();
     break;
     case EVENT_SENSOR_HIMUDATE:
+	  LCD_clear();
+      show_himedity(); 
     break;
     case EVENT_SENSOR_PRESSURE:
 	  LCD_clear();
       show_bigpressure();
-	  LCD_clear();
-      show_himedity(); 
     break;
     case EVENT_SET_STATE_OPTION:
 	  LCD_clear();
