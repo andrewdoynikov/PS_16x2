@@ -17,15 +17,17 @@
 #include "eeproms.h"
 #include "utils.h"
 //=============================================================================
-#define OMENU_MAX 2
+#define OMENU_MAX 3
 char *optionmenu[] = {
-"Set TIME  ", 
-"Set DATE  ", 
-"Set ALARM " 
+"Set TIME        ", 
+"Set DATE        ", 
+"Set ALARM       ", 
+"Set FM STATIONS " 
 };
 #define OM_SETTIME     	0
 #define OM_SETDATE     	1
 #define OM_SETALARM    	2
+#define OM_SETFM    	3
 uint8_t o_menu = OM_SETTIME;
 //=============================================================================
 #define DEBUGER		0
@@ -251,11 +253,12 @@ void run_main(unsigned char event)
           RTOS_setTask(EVENT_SHOW_VOLUME, 0, 0);
 	    }
 	  } else {
-	    if (chanel > 0) chanel--;
+	    if (chanel > 0) chanel--; else chanel = 25;
         rda5807SetChan(stations[chanel], 0);
         cnt_sensor = 0;
         cnt_freq = SHOW_FREQ;
 	    mode = MODE_FREQ;
+        RTOS_setTask(EVENT_SAVE_CHANEL, 3000, 0);
 	  }
     break;
     case EVENT_KEY_RIGHT:
@@ -265,18 +268,20 @@ void run_main(unsigned char event)
           RTOS_setTask(EVENT_SHOW_VOLUME, 0, 0);
 	    }
 	  } else {
-	    if (chanel < 25) chanel++;
+	    if (chanel < 25) chanel++; else chanel = 0;
         rda5807SetChan(stations[chanel], 0);
         cnt_sensor = 0;
         cnt_freq = SHOW_FREQ;
 	    mode = MODE_FREQ;
+        RTOS_setTask(EVENT_SAVE_CHANEL, 3000, 0);
 	  }
     break;
     case EVENT_SHOW_VOLUME:
 	  if (mode != MODE_VOLUME) LCD_clear();
       mode = MODE_VOLUME;
       show_bigvolume();
-      RTOS_setTask(EVENT_STOP_SHOW_VOLUME, 2000, 0);
+      RTOS_setTask(EVENT_STOP_SHOW_VOLUME, 3000, 0);
+      RTOS_setTask(EVENT_SAVE_VOLUME, 3000, 0);
     break;
     case EVENT_STOP_SHOW_VOLUME:
       cnt_freq = SHOW_FREQ;
@@ -322,6 +327,10 @@ void run_main(unsigned char event)
 	  SET_STATE(run_option);
   	  lcd_option();
     break;
+    case EVENT_SAVE_CHANEL:
+    break;
+    case EVENT_SAVE_VOLUME:
+    break;
 	default:
     break;
   }
@@ -342,6 +351,28 @@ void run_option(unsigned char event)
       BEEP_beep();
       if (o_menu < OMENU_MAX) { o_menu++; } else { o_menu = 0; }
 	  lcd_option();
+    break;
+    case EVENT_KEY_SET:
+	  if (o_menu == OM_SETTIME) {
+        n_edit_time = 0;
+        RTC_get_time(&hour, &min, &sec);
+        SET_STATE(edit_time);
+        lcd_edit_time();
+	  } else if (o_menu == OM_SETDATE) {
+ 	    n_edit_date = 0;
+        RTC_get_date(&wday, &day, &mes, &year);
+		wday = RTC_day_of_week(day, mes, year);
+        SET_STATE(edit_date);
+        lcd_edit_date();
+	  } else if (o_menu == OM_SETALARM) {
+ 	    n_edit_alarm = 0;
+//        RTC_get_alarm(&a_hour, &a_min, &a_sec);
+        SET_STATE(edit_alarm);
+        lcd_edit_alarm();
+	  } else if (o_menu == OM_SETFM) {
+        SET_STATE(edit_fmstation);
+        lcd_edit_fmstation();
+      }
     break;
     case EVENT_KEY_SET_LONG:
 	  LCD_clear();
@@ -374,6 +405,260 @@ void lcd_option(void)
     LCD_dat(' '); LCD_dat('-'); LCD_dat(' '); LCD_dat('[');
     if (a_onoff == 1) LCD_puts(" ON"); else LCD_puts("OFF");
 	LCD_dat(']');
-  }                                                            
+  } else if (o_menu == OM_SETFM) {
+  }
+}
+//=============================================================================
+void edit_time(unsigned char event)
+{
+  switch(event) {
+    case EVENT_KEY_SET_HOLD:
+    break;
+    case EVENT_KEY_SET_LONG:
+    break;
+    case EVENT_KEY_SET:
+      BEEP_beep();
+	  n_edit_time++;
+	  if (n_edit_time > 1) {
+	    n_edit_time = 0;
+		RTC_set_time(hour, min, 0);
+        SET_STATE(run_option);
+		lcd_option();
+		return;
+	  }
+      lcd_edit_time();
+    break;
+    case EVENT_KEY_LEFT:
+      BEEP_beep();
+	  if (n_edit_time == 0) { if (hour > 0) hour--; else hour = 23; } 
+	  if (n_edit_time == 1) { if (min > 0) min--; else min = 59; }
+      lcd_edit_time();
+    break;
+    case EVENT_KEY_RIGHT:
+      BEEP_beep();
+	  if (n_edit_time == 0) { if (hour < 23) hour++;  else hour = 0; } 
+	  if (n_edit_time == 1) { if (min < 59) min++; else min = 0; }
+      lcd_edit_time();
+    break;
+    case EVENT_TIMER_SECOND:
+	  lcd_edit_time();
+    break;
+  }    
+}
+//=============================================================================
+void lcd_edit_time(void)
+{
+  LCD_goto(0, 0);
+  LCD_puts(optionmenu[o_menu]);
+  if (n_edit_time == 0)
+  {
+    LCD_goto(9, 0);
+    LCD_puts(" [HOUR]");
+    LCD_goto(0, 1);
+	if (blinks == 1) print_dec(hour, 2, '0'); else { LCD_dat(' '); LCD_dat(' '); }
+    LCD_dat(':'); print_dec(min, 2, '0'); LCD_dat(':'); print_dec(0, 2, '0');
+  } else if (n_edit_time == 1) {
+    LCD_goto(9, 0);
+    LCD_puts(" [MIN] ");
+    LCD_goto(0, 1); print_dec(hour, 2, '0'); LCD_dat(':');
+	if (blinks == 1) print_dec(min, 2, '0'); else { LCD_dat(' '); LCD_dat(' '); }
+    LCD_dat(':'); print_dec(0, 2, '0');
+  }
+}
+//=============================================================================
+void edit_date(unsigned char event)
+{
+  switch(event) {
+    case EVENT_KEY_SET_HOLD:
+    break;
+    case EVENT_KEY_SET_LONG:
+    break;
+    case EVENT_KEY_SET:
+      BEEP_beep();
+	  n_edit_date++;
+	  wday = RTC_day_of_week(day, mes, year);
+	  if (n_edit_date > 2) {
+	    n_edit_date = 0;
+		RTC_set_date(wday, day, mes, year);
+        SET_STATE(run_option);
+		lcd_option();
+		return;
+	  }
+      lcd_edit_date();
+    break;
+    case EVENT_KEY_LEFT:
+      BEEP_beep();
+	  if (n_edit_date == 0)
+	  {
+	    if (day > 1) { day--; } else { day = 31; }
+	  } else if (n_edit_date == 1) {
+	    if (mes > 1) { mes--; } else { mes = 12; }
+	  } else if (n_edit_date == 2) {
+	    if (year > 15) { year--; } else { year = 15; }
+      }
+	  wday = RTC_day_of_week(day, mes, year);
+      lcd_edit_date();
+    break;
+    case EVENT_KEY_RIGHT:
+      BEEP_beep();
+	  if (n_edit_date == 0)
+	  {
+	    if (day < 31) { day++; } else { day = 1; }
+	  } else if (n_edit_date == 1) {
+	    if (mes < 12) { mes++; } else { mes = 1; }
+	  } else if (n_edit_date == 2) { year++; }
+	  wday = RTC_day_of_week(day, mes, year);
+      lcd_edit_date();
+    break;
+    case EVENT_TIMER_SECOND:
+	  lcd_edit_date();
+    break;
+  }    
+}
+//=============================================================================
+void lcd_edit_date(void)
+{
+  LCD_goto(0, 0);
+  LCD_puts(optionmenu[o_menu]);
+  if (n_edit_date == 0)
+  {
+    LCD_goto(9, 0);
+    LCD_puts(" [DAY]");
+    LCD_goto(0, 1);
+	if (blinks == 1) print_dec(day, 2, '0'); else { LCD_dat(' '); LCD_dat(' '); }
+    LCD_dat('-');
+    print_dec(mes, 2, '0');
+    LCD_dat('-');
+    print_dec(2000 + year, 4, '0');
+    LCD_dat(' '); LCD_dat('['); LCD_puts(den_dw[wday]); LCD_dat(']');
+  } else if (n_edit_date == 1) {
+    LCD_goto(9, 0);
+    LCD_puts(" [MES] ");
+    LCD_goto(0, 1);
+    print_dec(day, 2, '0');
+    LCD_dat('-');
+	if (blinks == 1) print_dec(mes, 2, '0'); else { LCD_dat(' '); LCD_dat(' '); }
+    LCD_dat('-');
+    print_dec(2000 + year, 4, '0');
+    LCD_dat(' '); LCD_dat('['); LCD_puts(den_dw[wday]); LCD_dat(']');
+  } else if (n_edit_date == 2) {
+    LCD_goto(9, 0);
+    LCD_puts(" [YEAH]");
+    LCD_goto(0, 1);
+    print_dec(day, 2, '0');
+    LCD_dat('-');
+    print_dec(mes, 2, '0');
+    LCD_dat('-');
+	if (blinks == 1) { print_dec(2000 + year, 4, '0'); } else { LCD_puts("    "); }
+    LCD_dat(' '); LCD_dat('['); LCD_puts(den_dw[wday]); LCD_dat(']');
+  }
+}
+//=============================================================================
+void edit_alarm(unsigned char event)
+{
+  switch(event) {
+    case EVENT_KEY_SET_HOLD:
+    break;
+    case EVENT_KEY_SET_LONG:
+    break;
+    case EVENT_KEY_SET:
+      BEEP_beep();
+      if (a_onoff == 1) n_edit_alarm++; else n_edit_alarm = 3;
+      if (n_edit_alarm > 2) {
+	    n_edit_alarm = 0;
+//		RTC_set_alarm(a_hour, a_min, 0);
+//		save_alarm_mod(a_onoff);
+        SET_STATE(run_option);
+	  }
+      lcd_edit_alarm();
+    break;
+    case EVENT_KEY_LEFT:
+      BEEP_beep();
+	  if (n_edit_alarm == 1)
+	  {
+	    if (a_hour > 0) a_hour--; else { a_hour = 23; }
+	  } 
+	  if (n_edit_alarm == 2) {
+	    if (a_min > 0) a_min--; else { a_min = 59; }
+	  }
+	  if (n_edit_alarm == 0) {
+	    a_onoff = !a_onoff;
+	  }
+      lcd_edit_alarm();
+    break;
+    case EVENT_KEY_RIGHT:
+      BEEP_beep();
+	  if (n_edit_alarm == 1)
+	  {
+	    if (a_hour < 23) a_hour++; else { a_hour = 0; }
+	  } 
+	  if (n_edit_alarm == 2) {
+	    if (a_min < 59) a_min++; else { a_min = 0; }
+	  }
+	  if (n_edit_alarm == 0) {
+	    a_onoff = !a_onoff;
+	  }
+      lcd_edit_alarm();
+    break;
+    case EVENT_TIMER_SECOND:
+	  lcd_edit_alarm();
+    break;
+  }    
+}
+//=============================================================================
+void lcd_edit_alarm(void)
+{
+  LCD_goto(0, 0);
+  LCD_puts(optionmenu[o_menu]);
+  if (n_edit_alarm == 1)
+  {
+    LCD_goto(9, 0);
+    LCD_puts(" [HOUR]");
+    LCD_goto(0, 1);
+	if (blinks == 1) print_dec(a_hour, 2, '0'); else { LCD_dat(' '); LCD_dat(' '); }
+    LCD_dat(':');
+    print_dec(a_min, 2, '0');
+    LCD_dat(':');
+    LCD_dat('0'); LCD_dat('0');
+    LCD_dat(' '); LCD_dat('-'); LCD_dat(' '); LCD_dat('[');
+    if (a_onoff == 1) LCD_puts(" ON"); else LCD_puts("OFF");
+    LCD_dat(']');
+  } else if (n_edit_alarm == 2) {
+    LCD_goto(9, 0);
+    LCD_puts(" [MIN] ");
+    LCD_goto(0, 1);
+    print_dec(a_hour, 2, '0');
+    LCD_dat(':');
+	if (blinks == 1) print_dec(a_min, 2, '0'); else { LCD_dat(' '); LCD_dat(' '); }
+    LCD_dat(':');
+    LCD_dat('0'); LCD_dat('0');
+    LCD_dat(' '); LCD_dat('-'); LCD_dat(' '); LCD_dat('[');
+    if (a_onoff == 1) LCD_puts(" ON"); else LCD_puts("OFF");
+    LCD_dat(']');
+  } else if (n_edit_alarm == 0) {
+    LCD_goto(9, 0);
+    LCD_puts(" [MOD] ");
+    LCD_goto(0, 1);
+    print_dec(a_hour, 2, '0');
+    LCD_dat(':');
+    print_dec(a_min, 2, '0');
+    LCD_dat(':');
+    LCD_dat('0'); LCD_dat('0');
+    LCD_dat(' '); LCD_dat('-'); LCD_dat(' '); LCD_dat('[');
+    if (blinks == 1) {
+      if (a_onoff == 1) LCD_puts(" ON"); else LCD_puts("OFF");
+    } else {
+      LCD_puts("   ");
+    }
+    LCD_dat(']');
+  }
+}
+//=============================================================================
+void edit_fmstation(unsigned char event)
+{
+}
+//=============================================================================
+void lcd_edit_fmstation(void)
+{
 }
 //=============================================================================

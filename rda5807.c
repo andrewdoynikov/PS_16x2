@@ -96,10 +96,9 @@ uint8_t *rda5807ReadStatus(void)
 void rda5807SetMute(uint8_t mute)
 {
 	if (mute)
-		wrBuf[0] &= ~RDA5807_DMUTE;
+	  wrBuf[0] &= ~RDA5807_DMUTE;
 	else
-		wrBuf[0] |= RDA5807_DMUTE;
-	//wrBuf[3] &= ~RDA5807_TUNE;
+	  wrBuf[0] |= RDA5807_DMUTE;
 
 	rda5807WriteI2C();
 

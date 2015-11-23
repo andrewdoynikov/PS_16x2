@@ -53,6 +53,7 @@ int main(void)
   ds18x20Process();
   if (bmp180HaveSensor()) bmp180Convert();
   dht22Read();
+#if (DEBUG == 0)
   if ((BUT_1_PINX & (1<<(BUT_1_PIN))) == 0) {
     _delay_ms(100);
     if ((BUT_1_PINX & (1<<(BUT_1_PIN))) == 0) {
@@ -62,6 +63,10 @@ int main(void)
       BEEP_beep();
     }
   }
+#else
+  RTOS_setTask(EVENT_SET_STATE_OPTION, 0, 0);
+  BEEP_beep();
+#endif
   RTOS_setTaskFunc(set_blink, 0, 1000);      // моргание
   RTOS_setTaskFunc(KBD_scan, 0, 5);          // запускаем опрос кнопок
   RTOS_setTaskFunc(ENC_poll, 0, 1);          // запускаем опрос енкодера

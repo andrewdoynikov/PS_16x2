@@ -9,6 +9,8 @@
 #define PORT(x)				CONCAT(PORT,x)
 #define PIN(x)				CONCAT(PIN,x)
 
+#define DEBUG				1
+
 #define I2C_SCL				D
 #define I2C_SCL_LINE		(1<<6)
 #define I2C_SDA				D

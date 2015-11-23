@@ -19,4 +19,12 @@ void show_himedity(void);
 void load_eeprom(void);
 void save_eeprom(void);
 //=============================================================================
+void edit_time(unsigned char event);
+void lcd_edit_time(void);
+void edit_date(unsigned char event);
+void lcd_edit_date(void);
+void edit_alarm(unsigned char event);
+void lcd_edit_alarm(void);
+void edit_fmstation(unsigned char event);
+void lcd_edit_fmstation(void);
 #endif
