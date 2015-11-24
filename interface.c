@@ -151,16 +151,27 @@ void show_bigvolume(void)
   lcd_bigchar(8, display[0]);
   lcd_bigchar(12, display[1]);
 }
-
+//=============================================================================
+void show_bigchanel(void)
+{
+  uint8_t display[2];
+  uint8_t v = chanel + 1;
+  display[0] = (v / 10) % 10;
+  display[1] = (v / 1) % 10;
+  LCD_goto(0, 0); LCD_puts("CHANEL:");
+  lcd_bigchar(8, display[0]);
+  lcd_bigchar(12, display[1]);
+}
+//=============================================================================
 void show_bigfreq(void)
 {
   uint8_t display[4];
-  uint16_t freqs = rda5807GetFreq();
-  display[0] = (freqs / 10000) % 10;
-  display[1] = (freqs / 1000) % 10;
-  display[2] = (freqs / 100) % 10;
-  display[3] = (freqs / 10) % 10;
-  if (freqs >= 10000) {
+  uint16_t f = rda5807GetFreq();
+  display[0] = (f / 10000) % 10;
+  display[1] = (f / 1000) % 10;
+  display[2] = (f / 100) % 10;
+  display[3] = (f / 10) % 10;
+  if (f >= 10000) {
     lcd_bigchar(0, display[0]);
   }
   lcd_bigchar(4, display[1]);
@@ -246,6 +257,18 @@ void run_main(unsigned char event)
     case EVENT_TIMER_SECOND:
 	  show_bigtime();
     break;
+    case EVENT_RC5_UP:
+      fm_mode = 1;
+      RTOS_setTask(EVENT_KEY_RIGHT, 0, 0);
+    break;
+    case EVENT_RC5_DOWN:
+       fm_mode = 1;
+       RTOS_setTask(EVENT_KEY_LEFT, 0, 0);
+    break;
+    case EVENT_RC5_LEFT:
+      fm_mode = 0;
+      RTOS_setTask(EVENT_KEY_LEFT, 0, 0);
+    break;
     case EVENT_KEY_LEFT:
 	  if (fm_mode == 0) {
 	    if (mute == 0) {
@@ -258,8 +281,13 @@ void run_main(unsigned char event)
         cnt_sensor = 0;
         cnt_freq = SHOW_FREQ;
 	    mode = MODE_FREQ;
+        RTOS_setTask(EVENT_SHOW_CHANEL, 0, 0);
         RTOS_setTask(EVENT_SAVE_CHANEL, 3000, 0);
 	  }
+    break;
+    case EVENT_RC5_RIGHT:
+      fm_mode = 0;
+      RTOS_setTask(EVENT_KEY_RIGHT, 0, 0);
     break;
     case EVENT_KEY_RIGHT:
 	  if (fm_mode == 0) {
@@ -273,8 +301,34 @@ void run_main(unsigned char event)
         cnt_sensor = 0;
         cnt_freq = SHOW_FREQ;
 	    mode = MODE_FREQ;
+        RTOS_setTask(EVENT_SHOW_CHANEL, 0, 0);
         RTOS_setTask(EVENT_SAVE_CHANEL, 3000, 0);
 	  }
+    break;
+    case EVENT_RC5_KEY1:
+    case EVENT_RC5_KEY2:
+    case EVENT_RC5_KEY3:
+    case EVENT_RC5_KEY4:
+    case EVENT_RC5_KEY5:
+    case EVENT_RC5_KEY6:
+    case EVENT_RC5_KEY7:
+    case EVENT_RC5_KEY8:
+    case EVENT_RC5_KEY9:
+	  mute = 0;
+	  rda5807SetMute(0);
+      rda5807SetVolume(10);
+	  chanel = event - 1;
+      rda5807SetChan(stations[chanel], 0);
+      cnt_sensor = 0;
+      cnt_freq = SHOW_FREQ;
+      mode = MODE_FREQ;
+      RTOS_setTask(EVENT_SHOW_CHANEL, 0, 0);
+      RTOS_setTask(EVENT_SAVE_CHANEL, 3000, 0);
+    break;
+    case EVENT_SHOW_CHANEL:
+	  LCD_clear();
+      show_bigchanel();
+	  _delay_ms(500);
     break;
     case EVENT_SHOW_VOLUME:
 	  if (mode != MODE_VOLUME) LCD_clear();
@@ -291,6 +345,7 @@ void run_main(unsigned char event)
     case EVENT_KEY_SET_LONG:
       fm_mode = !fm_mode;
     break;
+    case EVENT_RC5_SET:
     case EVENT_KEY_SET:
     break;
     case EVENT_KEY_SET_DOUBLE:

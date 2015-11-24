@@ -16,6 +16,7 @@ void show_bigfreq(void);
 void show_bigtemp(void);
 void show_bigpressure(void);
 void show_himedity(void);
+void show_bigchanel(void);
 void load_eeprom(void);
 void save_eeprom(void);
 //=============================================================================

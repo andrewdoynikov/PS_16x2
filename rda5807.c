@@ -36,7 +36,6 @@ void rda5807Init(void)
 void rda5807SetFreq(uint16_t freq, uint8_t mono)
 {
 	uint16_t chan = (freq - RDA5807_FREQ_MIN) / RDA5807_CHAN_SPACING;
-    freqs = freq;
 	rda5807SetChan(chan, mono);
 
 	return;
