@@ -71,7 +71,6 @@ int main(void)
   RTOS_setTaskFunc(KBD_scan, 0, 5);          // запускаем опрос кнопок
   RTOS_setTaskFunc(ENC_poll, 0, 1);          // запускаем опрос енкодера
   RTOS_setTaskFunc(RC5_scan, 0, 5);          // запускаем опрос RC5
-  RTOS_setTask(EVENT_SET_SHOW, 0, 0);		 // запуск шоу
   sei(); 				        			 // Разрешили прерывания
   while(1) {
     RTOS_dispatchTask();    			     // Вызываем диспетчер в цикле.    
