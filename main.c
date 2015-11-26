@@ -26,10 +26,8 @@ int main(void)
   LIGHT_init();
   LCD_init();
   LIGHT_on();
+  LCD_clear();
   BEEP_init();
-  DDR(PORT_LIGHT) |= PORT_LIGHT_LINE;
-  PORT(PORT_LIGHT) |= PORT_LIGHT_LINE;
-  ds18x20SearchDevices();
   RTC_init();
   RTOS_init();
   RC5_Init();
@@ -41,8 +39,7 @@ int main(void)
   rda5807Init();
   rda5807PowerOn();
   rda5807SetMute(1);
-  //RTC_set_time(13,41, 0);
-  LCD_clear();
+  ds18x20SearchDevices();
   LCD_goto(0, 0);
   LCD_puts("POGODNAY STATION");
   LCD_goto(0, 1);

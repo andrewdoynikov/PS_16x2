@@ -37,6 +37,8 @@ uint8_t o_menu = OM_SETTIME;
 #define SHOW_TEMP					5000 // ms
 #define SHOW_PRESURE				5000 // ms
 #define SHOW_HIMEDITY				5000 // ms
+#define SHOW_CHANEL					3000 // ms
+#define SHOW_VOLUME					3000 // ms
 //=============================================================================
 unsigned char a_onoff, a_hour, a_min, a_sec;
 unsigned char n_edit_time = 0, n_edit_date = 0, n_edit_alarm = 0;
@@ -269,8 +271,18 @@ void run_main(unsigned char event)
       RTOS_setTask(EVENT_KEY_RIGHT, 0, 0);
     break;
     case EVENT_KEY_LEFT:
+	  clear_task();
+	  if (mute == 0) {
+        rda5807SetVolume(rda5807GetVolume() - 1);
+        RTOS_setTask(EVENT_SHOW_VOLUME, 0, 0);
+	  }
     break;
     case EVENT_KEY_RIGHT:
+	  clear_task();
+	  if (mute == 0) {
+        rda5807SetVolume(rda5807GetVolume() + 1);
+        RTOS_setTask(EVENT_SHOW_VOLUME, 0, 0);
+	  }
     break;
     case EVENT_RC5_KEY1:
     case EVENT_RC5_KEY2:
@@ -288,11 +300,12 @@ void run_main(unsigned char event)
     case EVENT_KEY_SET:
 	  mute = !mute;
 	  if (mute == 0) {
+	    clear_task();
+	    cnt_sensor = 0;
 	    rda5807SetMute(0);
         rda5807SetVolume(rda5807GetVolume());
 		// get chanel save eeprom ????????????????
         rda5807SetChan(stations[chanel], 0);
-        RTOS_setTask(EVENT_SHOW_FREQ, 0, 0);
         RTOS_setTask(EVENT_SHOW_CHANEL, 0, 0);
         RTOS_setTask(EVENT_SAVE_CHANEL, 3000, 0);
         RTOS_setTask(EVENT_SAVE_VOLUME, 3000, 0);
@@ -308,11 +321,16 @@ void run_main(unsigned char event)
   	  lcd_option();
     break;
     case EVENT_SHOW_CHANEL:
-      BEEP_beep();
+	  cnt_sensor = 0;
+	  LCD_clear();
+	  show_bigchanel();
+      RTOS_setTask(EVENT_SHOW_FREQ, SHOW_CHANEL, 0);
     break;
     case EVENT_SHOW_VOLUME:
-    break;
-    case EVENT_STOP_SHOW_VOLUME:
+	  cnt_sensor = 0;
+	  LCD_clear();
+	  show_bigvolume();
+      RTOS_setTask(EVENT_SHOW_FREQ, SHOW_VOLUME, 0);
     break;
     case EVENT_SAVE_CHANEL:
       BEEP_beep();
@@ -323,6 +341,15 @@ void run_main(unsigned char event)
 	default:
     break;
   }
+}
+//=============================================================================
+void clear_task(void)
+{
+  RTOS_deleteTask(EVENT_SHOW_FREQ);
+  RTOS_deleteTask(EVENT_SHOW_TIME);
+  RTOS_deleteTask(EVENT_SENSOR_HIMUDATE);
+  RTOS_deleteTask(EVENT_SENSOR_PRESSURE);
+  RTOS_deleteTask(EVENT_SENSOR_TEMP);
 }
 //=============================================================================
 void run_option(unsigned char event)

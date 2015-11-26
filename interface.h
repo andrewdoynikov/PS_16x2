@@ -19,6 +19,7 @@ void show_himedity(void);
 void show_bigchanel(void);
 void load_eeprom(void);
 void save_eeprom(void);
+void clear_task(void);
 //=============================================================================
 void edit_time(unsigned char event);
 void lcd_edit_time(void);
